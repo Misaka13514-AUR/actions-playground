@@ -16,8 +16,8 @@ jobs:
       attestations: write
     env:
       REGISTRY: ghcr.io
-      USERNAME: MSKNET
-      IMAGE_NAME: msknet/lilac
+      USERNAME: ${{ github.actor }}
+      IMAGE_NAME: ${{ github.repository }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
