@@ -41,6 +41,7 @@ RUN chown -R lilac:pkg /home/lilac && \
     chmod 700 /home/lilac/.ssh
 
 COPY init.sh /
+COPY rclone-exclude.txt /
 RUN chmod +x /init.sh
 
 VOLUME ["/tmp", "/run", "/run/lock"]

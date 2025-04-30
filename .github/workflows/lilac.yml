@@ -4,11 +4,11 @@ on:
   #   branches:
   #     - main
   workflow_dispatch:
-env:
-  MAINTAINER_GPG_FINGERPRINT: 293B93D8A471059F85D716A65BA92099D9BE2DAA
-  SSH_KEY: ${{ secrets.SSH_KEY }}
-  GPG_KEY: ${{ secrets.GPG_KEY }}
-  RCLONE_CONFIG: ${{ secrets.RCLONE_CONFIG }}
+    inputs:
+      lilac_args:
+        default: ''
+        description: 'Args pass to lilac'
+        type: string
 jobs:
   lilac:
     runs-on: ubuntu-latest
@@ -19,18 +19,22 @@ jobs:
           mkdir -p lilac/repo
           mkdir -p lilac/remote
           mkdir -p lilac/config
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: Misaka13514-AUR/repo
+          fetch-depth: 0
+          ssh-key: ${{ secrets.SSH_KEY }}
+          path: lilac/gitrepo
       - name: Write config
         run: |
           umask 077
           echo "${{ secrets.SSH_KEY }}" > lilac/config/ssh_key
           echo "${{ secrets.GPG_KEY }}" > lilac/config/gpg_key
           echo "${{ secrets.RCLONE_CONFIG }}" > lilac/config/rclone.conf
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          repository: Misaka13514-AUR/repo
-          fetch-depth: 0
-          path: lilac/gitrepo
+          cp -a lilac/gitrepo/lilac.toml lilac/config/lilac.toml
+          sed -i "s|<DB_URL>|${{ secrets.DB_URL }}|g" lilac/config/lilac.toml
+          sed -i "s|<SMTP_PASSWORD>|${{ secrets.SMTP_PASSWORD }}|g" lilac/config/lilac.toml
       - name: Start Docker container
         run: |
           docker run --rm -d \
@@ -43,38 +47,44 @@ jobs:
             --tmpfs /tmp \
             --tmpfs /run \
             --tmpfs /run/lock \
-            -v lilac:/home/lilac/lilac \
+            -v $(pwd)/lilac:/home/lilac/lilac \
             ghcr.io/misaka13514-aur/actions-playground:latest
       - name: Set up system environment in Docker
         run: |
-          docker exec -t lilac bash /init.sh
+          docker exec -t lilac /init.sh
       - name: Set up user environment in Docker
         run: |
-          docker exec -t lilac bash -c "loginctl enable-linger lilac"
-      - name: Set up user environment
+          docker exec -t lilac loginctl enable-linger lilac
+          docker exec -t lilac machinectl shell lilac@ \
+            /usr/bin/gpg --batch --import lilac/config/gpg_key
+      - name: Mount remote directory
         run: |
-          echo todo
-          # add ssh key
-          # add gpg key
-          # add rclone config
-          # mount rclone remote
-          # add lilac config
-          # add lilac persist files
-          # run lilac
-          # docker exec -t lilac bash -c "machinectl shell lilac@ /usr/bin/lilac"
-          # post process
+          docker exec -t lilac machinectl shell lilac@ \
+            /usr/bin/rclone mount --daemon --read-only remote: lilac/remote
+      - name: Copy lilac persist files from remote
+        run: |
+          docker exec -t lilac machinectl shell lilac@ \
+            /usr/bin/rclone sync -v --exclude-file /rclone-exclude.txt sync remote:lilac .lilac
+      # - name: Run lilac
+      #   run: |
+      #     docker exec -t lilac machinectl shell lilac@ \
+      #       /usr/bin/lilac ${{ inputs.lilac_args }}
+          ## post process
           # if any pkgs are built, run the following commands
-          # repo-add
-          # copy packages to remote
-          # cleanup old packages
-          # attest the packages
+            # repo-add
+            # copy packages to remote
+            # cleanup old packages
+            # attest the packages
           # always run the following commands
-          # copy logs to remote
-          # copy lilac persist files to remote
-          # output logs to summary
-          # unmount
+            # copy logs to remote
+            # copy lilac persist files to remote
+            # output logs to summary
       - name: Setup tmate session
         uses: mxschmitt/action-tmate@v3
         with:
           limit-access-to-actor: true
           install-dependencies: true
+      - name: Unmount remote directory
+        run: |
+          docker exec -t lilac machinectl shell lilac@ \
+            /usr/bin/fusermount -u lilac/remote
