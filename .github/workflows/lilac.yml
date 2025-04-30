@@ -19,22 +19,30 @@ jobs:
           mkdir -p lilac/repo
           mkdir -p lilac/remote
           mkdir -p lilac/config
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          repository: Misaka13514-AUR/repo
-          fetch-depth: 0
-          ssh-key: ${{ secrets.SSH_KEY }}
-          path: lilac/gitrepo
+      # - name: Checkout
+      #   uses: actions/checkout@v4
+      #   with:
+      #     repository: Misaka13514-AUR/repo
+      #     fetch-depth: 0
+      #     ssh-key: ${{ secrets.SSH_KEY }}
+      #     path: lilac/gitrepo
+      - name: Clone gitrepo
+        run: |
+          echo "${{ secrets.SSH_KEY }}" | install -Dm600 /dev/stdin ~/.ssh/id_ed25519
+          git clone --single-branch --depth 1 git@github.com:Misaka13514-AUR/repo.git lilac/gitrepo
       - name: Write config
         run: |
           umask 077
           echo "${{ secrets.SSH_KEY }}" > lilac/config/ssh_key
           echo "${{ secrets.GPG_KEY }}" > lilac/config/gpg_key
-          printf "%s" "${{ secrets.RCLONE_CONFIG }}" > lilac/config/rclone.conf
+          echo '${{ secrets.RCLONE_CONFIG }}' > lilac/config/rclone.conf
           cp -a lilac/gitrepo/lilac.toml lilac/config/lilac.toml
           sed -i "s|<DB_URL>|${{ secrets.DB_URL }}|g" lilac/config/lilac.toml
           sed -i "s|<SMTP_PASSWORD>|${{ secrets.SMTP_PASSWORD }}|g" lilac/config/lilac.toml
+      - name: Setup Docker
+        run: |
+          echo '{"exec-opts":["native.cgroupdriver=systemd"]}' | sudo tee /etc/docker/daemon.json
+          sudo systemctl restart docker
       - name: Start Docker container
         run: |
           docker run --rm -d \
