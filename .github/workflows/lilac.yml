@@ -28,6 +28,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          repository: Misaka13514-AUR/repo
           fetch-depth: 0
           path: lilac/gitrepo
       - name: Start Docker container
@@ -46,7 +47,7 @@ jobs:
             ghcr.io/misaka13514-aur/actions-playground:latest
       - name: Set up system environment in Docker
         run: |
-          docker exec -it lilac bash /init.sh
+          docker exec -t lilac bash /init.sh
           docker exec -it lilac bash -c "loginctl enable-linger lilac"
       - name: Set up user environment
         run: |
@@ -58,7 +59,7 @@ jobs:
           # add lilac config
           # add lilac persist files
           # run lilac
-          # docker exec -it lilac bash -c "machinectl shell lilac@ /usr/bin/lilac"
+          # docker exec -t lilac bash -c "machinectl shell lilac@ /usr/bin/lilac"
           # post process
           # if any pkgs are built, run the following commands
           # repo-add
