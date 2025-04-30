@@ -13,11 +13,9 @@ jobs:
   lilac:
     runs-on: ubuntu-latest
     steps:
-      - name: Check and mount cgroup2
+      - name: Check cgroup2
         run: |
-          grep cgroup /proc/filesystems
-          sudo mount -t cgroup2 none /sys/fs/cgroup
-          mount
+          mount | column -t
       - name: Prepare the directory
         run: |
           mkdir -p lilac/gitrepo
