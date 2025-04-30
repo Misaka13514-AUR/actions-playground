@@ -48,7 +48,9 @@ jobs:
       - name: Set up system environment in Docker
         run: |
           docker exec -t lilac bash /init.sh
-          docker exec -it lilac bash -c "loginctl enable-linger lilac"
+      - name: Set up user environment in Docker
+        run: |
+          docker exec -t lilac bash -c "loginctl enable-linger lilac"
       - name: Set up user environment
         run: |
           echo todo
