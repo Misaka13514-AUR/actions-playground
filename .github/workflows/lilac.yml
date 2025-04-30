@@ -13,6 +13,11 @@ jobs:
   lilac:
     runs-on: ubuntu-latest
     steps:
+      - name: Check and mount cgroup2
+        run: |
+          grep cgroup /proc/filesystems
+          sudo mount -t cgroup2 none /sys/fs/cgroup
+          mount
       - name: Prepare the directory
         run: |
           mkdir -p lilac/gitrepo
@@ -31,7 +36,9 @@ jobs:
           umask 077
           echo "${{ secrets.SSH_KEY }}" > lilac/config/ssh_key
           echo "${{ secrets.GPG_KEY }}" > lilac/config/gpg_key
-          echo "${{ secrets.RCLONE_CONFIG }}" > lilac/config/rclone.conf
+          cat <<'EOF' > lilac/config/rclone.conf
+          ${{ secrets.RCLONE_CONFIG }}
+          'EOF'
           cp -a lilac/gitrepo/lilac.toml lilac/config/lilac.toml
           sed -i "s|<DB_URL>|${{ secrets.DB_URL }}|g" lilac/config/lilac.toml
           sed -i "s|<SMTP_PASSWORD>|${{ secrets.SMTP_PASSWORD }}|g" lilac/config/lilac.toml
@@ -64,7 +71,7 @@ jobs:
       - name: Copy lilac persist files from remote
         run: |
           docker exec -t lilac machinectl shell lilac@ \
-            /usr/bin/rclone sync -v --exclude-file /rclone-exclude.txt sync remote:lilac .lilac
+            /usr/bin/rclone sync -v --exclude-from /rclone-exclude.txt sync remote:lilac .lilac
       # - name: Run lilac
       #   run: |
       #     docker exec -t lilac machinectl shell lilac@ \
