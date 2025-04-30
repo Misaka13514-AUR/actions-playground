@@ -35,9 +35,7 @@ ARG UID=1001 \
     GID=954
 RUN groupmod -g ${GID} pkg && \
     chgrp ${GID} /usr/bin/kill_children && \
-    useradd -m -u ${UID} -g pkg -s /bin/bash lilac && \
-    mkdir -p /var/lib/systemd/linger && \
-    touch /var/lib/systemd/linger/lilac # loginctl enable-linger lilac
+    useradd -m -u ${UID} -g pkg -s /bin/bash lilac
 COPY home/ /home/
 RUN chown -R lilac:pkg /home/lilac && \
     chmod 700 /home/lilac/.ssh

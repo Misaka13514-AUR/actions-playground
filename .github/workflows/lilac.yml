@@ -6,28 +6,70 @@ on:
   workflow_dispatch:
 env:
   MAINTAINER_GPG_FINGERPRINT: 293B93D8A471059F85D716A65BA92099D9BE2DAA
+  SSH_KEY: ${{ secrets.SSH_KEY }}
+  GPG_KEY: ${{ secrets.GPG_KEY }}
+  RCLONE_CONFIG: ${{ secrets.RCLONE_CONFIG }}
 jobs:
   lilac:
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/misaka13514-aur/actions-playground:latest
-      options: --privileged --cap-add SYS_ADMIN --security-opt seccomp=unconfined --cgroup-parent=docker.slice --cgroupns private --tmpfs /tmp --tmpfs /run --tmpfs /run/lock
     steps:
+      - name: Prepare the directory
+        run: |
+          mkdir -p lilac/gitrepo
+          mkdir -p lilac/repo
+          mkdir -p lilac/remote
+          mkdir -p lilac/config
+      - name: Write config
+        run: |
+          umask 077
+          echo "${{ secrets.SSH_KEY }}" > lilac/config/ssh_key
+          echo "${{ secrets.GPG_KEY }}" > lilac/config/gpg_key
+          echo "${{ secrets.RCLONE_CONFIG }}" > lilac/config/rclone.conf
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Set up system environment
+        with:
+          fetch-depth: 0
+          path: lilac/gitrepo
+      - name: Start Docker container
         run: |
-          pacman-key --init
-          pacman-key --populate
-          pacman-key --recv-keys ${MAINTAINER_GPG_FINGERPRINT}
-          pacman-key --lsign-key ${MAINTAINER_GPG_FINGERPRINT}
-          pacman -Syu --noconfirm
-      - name: Set up systemd
+          docker run --rm -d \
+            --name lilac \
+            --privileged \
+            --cap-add SYS_ADMIN \
+            --security-opt seccomp=unconfined \
+            --cgroup-parent=docker.slice \
+            --cgroupns private \
+            --tmpfs /tmp \
+            --tmpfs /run \
+            --tmpfs /run/lock \
+            -v lilac:/home/lilac/lilac \
+            ghcr.io/misaka13514-aur/actions-playground:latest
+      - name: Set up system environment in Docker
         run: |
-          # loginctl enable-linger lilac
+          docker exec -it lilac bash /init.sh
+          docker exec -it lilac bash -c "loginctl enable-linger lilac"
       - name: Set up user environment
         run: |
           echo todo
+          # add ssh key
+          # add gpg key
+          # add rclone config
+          # mount rclone remote
+          # add lilac config
+          # add lilac persist files
+          # run lilac
+          # docker exec -it lilac bash -c "machinectl shell lilac@ /usr/bin/lilac"
+          # post process
+          # if any pkgs are built, run the following commands
+          # repo-add
+          # copy packages to remote
+          # cleanup old packages
+          # attest the packages
+          # always run the following commands
+          # copy logs to remote
+          # copy lilac persist files to remote
+          # output logs to summary
+          # unmount
       - name: Setup tmate session
         uses: mxschmitt/action-tmate@v3
         with:
