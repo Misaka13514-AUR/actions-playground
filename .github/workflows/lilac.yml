@@ -13,9 +13,6 @@ jobs:
   lilac:
     runs-on: ubuntu-latest
     steps:
-      - name: Check cgroup2
-        run: |
-          mount | column -t
       - name: Prepare the directory
         run: |
           mkdir -p lilac/gitrepo
@@ -34,9 +31,7 @@ jobs:
           umask 077
           echo "${{ secrets.SSH_KEY }}" > lilac/config/ssh_key
           echo "${{ secrets.GPG_KEY }}" > lilac/config/gpg_key
-          cat <<'EOF' > lilac/config/rclone.conf
-          ${{ secrets.RCLONE_CONFIG }}
-          'EOF'
+          printf "%s" "${{ secrets.RCLONE_CONFIG }}" > lilac/config/rclone.conf
           cp -a lilac/gitrepo/lilac.toml lilac/config/lilac.toml
           sed -i "s|<DB_URL>|${{ secrets.DB_URL }}|g" lilac/config/lilac.toml
           sed -i "s|<SMTP_PASSWORD>|${{ secrets.SMTP_PASSWORD }}|g" lilac/config/lilac.toml
