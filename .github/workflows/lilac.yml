@@ -1,14 +1,14 @@
 name: lilac
 on:
-  push:
-    branches:
-      - main
+  # push:
+  #   branches:
+  #     - main
   workflow_dispatch:
+env:
+  MAINTAINER_GPG_FINGERPRINT: 293B93D8A471059F85D716A65BA92099D9BE2DAA
 jobs:
   lilac:
     runs-on: ubuntu-latest
-    env:
-      NODE_ENV: development
     container:
       image: ghcr.io/misaka13514-aur/actions-playground:latest
       options: --privileged --cap-add SYS_ADMIN --security-opt seccomp=unconfined --cgroup-parent=docker.slice --cgroupns private --tmpfs /tmp --tmpfs /run --tmpfs /run/lock
@@ -16,14 +16,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Set up system environment
-        env:
-          MAINTAINER_GPG_FINGERPRINT: 293B93D8A471059F85D716A65BA92099D9BE2DAA
         run: |
           pacman-key --init
           pacman-key --populate
           pacman-key --recv-keys ${MAINTAINER_GPG_FINGERPRINT}
           pacman-key --lsign-key ${MAINTAINER_GPG_FINGERPRINT}
           pacman -Syu --noconfirm
+      - name: Set up systemd
+        run: |
           # loginctl enable-linger lilac
       - name: Set up user environment
         run: |

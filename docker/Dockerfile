@@ -3,7 +3,7 @@ FROM archlinux:base
 # Configure system for lilac
 # https://lilac.readthedocs.io/en/latest/setup.html#installation
 ARG MAINTAINER_GPG_FINGERPRINT=293B93D8A471059F85D716A65BA92099D9BE2DAA
-COPY pacman.conf /etc/pacman.conf
+COPY etc/ /etc/
 RUN --mount=type=cache,target=/var/cache/pacman/pkg \
     pacman-key --init && \
     pacman-key --populate && \
@@ -13,16 +13,11 @@ RUN --mount=type=cache,target=/var/cache/pacman/pkg \
     pacman -S --noconfirm base-devel && \
     pacman -S --noconfirm devtools lilac-git python-psycopg2 && \
     pacman -S --noconfirm rclone xz openssh tmate && \
-    pacman -S --noconfirm vim fish && \
     pacman -Scc --noconfirm && \
     rm -rf /etc/pacman.d/gnupg && \
     rm -rf /var/lib/pacman/sync && \
     rm -f /var/log/pacman.log && \
     rm -f /var/cache/ldconfig/aux-cache
-
-COPY build.sh /etc/profile.d/build.sh
-COPY resources.conf /etc/systemd/system/user@.service.d/resources.conf
-RUN echo "DefaultOOMScoreAdjust=0" >> /etc/systemd/user.conf
 
 # Remove unnecessary units
 # https://github.com/alexheretic/aurto/blob/main/Dockerfile
@@ -43,10 +38,12 @@ RUN groupmod -g ${GID} pkg && \
     useradd -m -u ${UID} -g pkg -s /bin/bash lilac && \
     mkdir -p /var/lib/systemd/linger && \
     touch /var/lib/systemd/linger/lilac # loginctl enable-linger lilac
-COPY sudoers /etc/sudoers.d/lilac
-COPY known_hosts /home/lilac/.ssh/known_hosts
-RUN chown -R lilac:pkg /home/lilac/.ssh && \
+COPY home/ /home/
+RUN chown -R lilac:pkg /home/lilac && \
     chmod 700 /home/lilac/.ssh
+
+COPY init.sh /
+RUN chmod +x /init.sh
 
 VOLUME ["/tmp", "/run", "/run/lock"]
 CMD [ "/lib/systemd/systemd", "log-level=info", "unit=sysinit.target" ]
