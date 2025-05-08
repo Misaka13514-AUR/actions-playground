@@ -43,7 +43,9 @@ jobs:
           # https://docs.docker.com/reference/cli/dockerd/#configure-cgroup-driver
           echo '{"exec-opts":["native.cgroupdriver=systemd"]}' | sudo tee /etc/docker/daemon.json
           sudo systemctl restart docker.service
-          sleep 5
+          sleep 20
+          sudo systemctl restart docker.service
+          sleep 20
           sudo systemctl status docker.service
           docker info
       - name: 🛠️🐬 Start Docker container
@@ -104,7 +106,7 @@ jobs:
       - name: 🔢📦 Count built packages
         id: count
         run: |
-          echo "pkgs_count=$(docker exec -t lilac /usr/bin/bash -c 'find /home/lilac/lilac/repo -type f -name *.pkg.tar.zst | wc -l')" >> $GITHUB_OUTPUT
+          echo "pkgs_count=$(find lilac/repo -type f -name *.pkg.tar.zst | wc -l)" >> $GITHUB_OUTPUT
       - name: ✍️📦 Attest packages
         if: steps.count.outputs.pkgs_count != 0
         uses: actions/attest-build-provenance@v2
