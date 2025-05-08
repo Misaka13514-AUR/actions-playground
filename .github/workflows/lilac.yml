@@ -42,7 +42,6 @@ jobs:
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           # https://docs.docker.com/reference/cli/dockerd/#configure-cgroup-driver
           echo '{"exec-opts":["native.cgroupdriver=systemd"]}' | sudo tee /etc/docker/daemon.json
-          sudo systemctl stop docker.socket
           sudo systemctl stop docker.service
           sleep 5
           sudo systemctl status docker.service
