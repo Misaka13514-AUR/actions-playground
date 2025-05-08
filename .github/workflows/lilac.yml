@@ -68,7 +68,7 @@ jobs:
       - name: Download lilac persist files
         run: |
           docker exec -t lilac machinectl shell lilac@ \
-            /usr/bin/rclone sync -v --exclude-from /rclone-exclude.txt sync remote:lilac .lilac
+            /usr/bin/rclone sync -v --exclude-from /rclone-exclude.txt remote:lilac .lilac
       - name: Run lilac
         run: |
           docker exec -t lilac machinectl shell lilac@ \
@@ -83,19 +83,17 @@ jobs:
             /usr/bin/rclone sync -v --exclude-from /rclone-exclude.txt .lilac remote:lilac
       - name: Print lilac logs
         run: |
-          docker exec -t lilac machinectl shell lilac@ \
-            /group-log.sh
+          docker exec -t lilac /group-log.sh
       - name: Output build log to job summary
         run: |
           echo "## Build log" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          docker exec -t lilac machinectl shell lilac@ \
-            /usr/bin/cat .lilac/build.log >> $GITHUB_STEP_SUMMARY
+          docker exec -t lilac cat /home/lilac/.lilac/build.log >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Count built packages
         id: count
         run: |
-          echo "pkgs_count=$(docker exec -t lilac machinectl shell lilac@ /usr/bin/bash -c 'find lilac/repo -type f -name *.pkg.tar.zst | wc -l')" >> $GITHUB_OUTPUT
+          echo "pkgs_count=$(docker exec -t lilac /usr/bin/bash -c 'find /home/lilac/lilac/repo -type f -name *.pkg.tar.zst | wc -l')" >> $GITHUB_OUTPUT
       - name: Download pacman database
         if: steps.count.outputs.pkgs_count != 0
         run: |
