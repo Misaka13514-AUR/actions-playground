@@ -42,10 +42,17 @@ jobs:
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           # https://docs.docker.com/reference/cli/dockerd/#configure-cgroup-driver
           echo '{"exec-opts":["native.cgroupdriver=systemd"]}' | sudo tee /etc/docker/daemon.json
-          sudo systemctl stop docker.service
+          if ! sudo systemctl stop docker.socket; then
+            echo "⚠️ [Warning] Failed to stop docker.socket (exit code: $?)"
+          fi
+          if ! sudo systemctl stop docker.service; then
+            echo "⚠️ [Warning] Failed to stop docker.service (exit code: $?)"
+          fi
           sleep 5
           sudo systemctl status docker.service
-          sudo systemctl start docker.service
+          if ! sudo systemctl start docker.service; then
+            echo "⚠️ [Warning] Failed to start docker.service (exit code: $?)"
+          fi
           sleep 5
           sudo systemctl status docker.service
       - name: 🛠️🐬 Start Docker container
