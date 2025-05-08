@@ -41,8 +41,10 @@ RUN chown -R lilac:pkg /home/lilac && \
     chmod 700 /home/lilac/.ssh
 
 COPY init.sh /
+COPY group-log.sh /
 COPY rclone-exclude.txt /
-RUN chmod +x /init.sh
+RUN chmod +x /init.sh && \
+    chmod +x /group-log.sh
 
 VOLUME ["/tmp", "/run", "/run/lock"]
 CMD [ "/lib/systemd/systemd", "log-level=info", "unit=sysinit.target" ]

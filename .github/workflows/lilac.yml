@@ -12,6 +12,9 @@ on:
 jobs:
   lilac:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      attestations: write
     steps:
       - name: Prepare the directory
         run: |
@@ -19,13 +22,6 @@ jobs:
           mkdir -p lilac/repo
           mkdir -p lilac/remote
           mkdir -p lilac/config
-      # - name: Checkout
-      #   uses: actions/checkout@v4
-      #   with:
-      #     repository: Misaka13514-AUR/repo
-      #     fetch-depth: 0
-      #     ssh-key: ${{ secrets.SSH_KEY }}
-      #     path: lilac/gitrepo
       - name: Clone gitrepo
         run: |
           echo "${{ secrets.SSH_KEY }}" | install -Dm600 /dev/stdin ~/.ssh/id_ed25519
@@ -69,25 +65,72 @@ jobs:
         run: |
           docker exec -t lilac machinectl shell lilac@ \
             /usr/bin/rclone mount --daemon --read-only remote: lilac/remote
-      - name: Copy lilac persist files from remote
+      - name: Download lilac persist files
         run: |
           docker exec -t lilac machinectl shell lilac@ \
             /usr/bin/rclone sync -v --exclude-from /rclone-exclude.txt sync remote:lilac .lilac
-      # - name: Run lilac
-      #   run: |
-      #     docker exec -t lilac machinectl shell lilac@ \
-      #       /usr/bin/lilac ${{ inputs.lilac_args }}
-          ## post process
-          # if any pkgs are built, run the following commands
-            # repo-add
+      - name: Run lilac
+        run: |
+          docker exec -t lilac machinectl shell lilac@ \
+            /usr/bin/lilac ${{ inputs.lilac_args }}
+      - name: Upload lilac logs
+        run: |
+          docker exec -t lilac machinectl shell lilac@ \
+            /usr/bin/rclone copy -v --copy-links .lilac/log remote:aur/log
+      - name: Upload lilac persist files
+        run: |
+          docker exec -t lilac machinectl shell lilac@ \
+            /usr/bin/rclone sync -v --exclude-from /rclone-exclude.txt .lilac remote:lilac
+      - name: Print lilac logs
+        run: |
+          docker exec -t lilac machinectl shell lilac@ \
+            /group-log.sh
+      - name: Output build log to job summary
+        run: |
+          echo "## Build log" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          docker exec -t lilac machinectl shell lilac@ \
+            /usr/bin/cat .lilac/build.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+      - name: Count built packages
+        id: count
+        run: |
+          echo "pkgs_count=$(docker exec -t lilac machinectl shell lilac@ /usr/bin/bash -c 'find lilac/repo -type f -name *.pkg.tar.zst | wc -l')" >> $GITHUB_OUTPUT
+      - name: Download pacman database
+        if: steps.count.outputs.pkgs_count != 0
+        run: |
+          docker exec -t lilac machinectl shell lilac@ \
+            /usr/bin/rclone copy -v --copy-links remote:aur/x86_64/apeiria.db lilac/repo
+          docker exec -t lilac machinectl shell lilac@ \
+            /usr/bin/rclone copy -v --copy-links remote:aur/x86_64/apeiria.db.tar.gz lilac/repo
+          docker exec -t lilac machinectl shell lilac@ \
+            /usr/bin/rclone copy -v --copy-links remote:aur/x86_64/apeiria.files lilac/repo
+          docker exec -t lilac machinectl shell lilac@ \
+            /usr/bin/rclone copy -v --copy-links remote:aur/x86_64/apeiria.files.tar.gz lilac/repo
+      - name: Add packages to database
+        if: steps.count.outputs.pkgs_count != 0
+        run: |
+          docker exec -t lilac machinectl shell lilac@ \
+            /usr/bin/repo-add lilac/repo/apeiria.db.tar.gz lilac/repo/*.pkg.tar.zst
+      - name: Upload packages and database
+        if: steps.count.outputs.pkgs_count != 0
+        run: |
+          docker exec -t lilac machinectl shell lilac@ \
+            /usr/bin/rclone copy -v --copy-links lilac/repo/ remote:aur/x86_64
             # copy packages to remote
             # cleanup old packages
             # attest the packages
-          # always run the following commands
-            # copy logs to remote
-            # copy lilac persist files to remote
-            # output logs to summary
+      - name: Clean up
+        if: steps.count.outputs.pkgs_count != 0
+        run: |
+          echo TODO
+      - name: Attest packages
+        if: steps.count.outputs.pkgs_count != 0
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: 'lilac/repo/*.pkg.tar.zst'
       - name: Setup tmate session
+        if: ${{ failure()}}
         uses: mxschmitt/action-tmate@v3
         with:
           limit-access-to-actor: true
