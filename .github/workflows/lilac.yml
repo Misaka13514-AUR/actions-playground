@@ -37,8 +37,15 @@ jobs:
           sed -i "s|<SMTP_PASSWORD>|${{ secrets.SMTP_PASSWORD }}|g" lilac/config/lilac.toml
       - name: 🛠️⚙️ Setup Docker
         run: |
+          # https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          # https://docs.docker.com/reference/cli/dockerd/#configure-cgroup-driver
           echo '{"exec-opts":["native.cgroupdriver=systemd"]}' | sudo tee /etc/docker/daemon.json
-          sudo systemctl restart docker
+          sudo systemctl stop docker.service
+          sudo systemctl stop docker.socket
+          sudo systemctl status docker.service # should be inactive
+          sudo systemctl start docker.service
       - name: 🛠️🐬 Start Docker container
         run: |
           docker run --rm -d \

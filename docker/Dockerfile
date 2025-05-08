@@ -12,7 +12,7 @@ RUN --mount=type=cache,target=/var/cache/pacman/pkg \
     pacman -Syu --noconfirm && \
     pacman -S --noconfirm base-devel && \
     pacman -S --noconfirm devtools lilac-git python-psycopg2 && \
-    pacman -S --noconfirm rclone xz openssh tmate && \
+    pacman -S --noconfirm rclone fuse3 && \
     pacman -Scc --noconfirm && \
     rm -rf /etc/pacman.d/gnupg && \
     rm -rf /var/lib/pacman/sync && \
