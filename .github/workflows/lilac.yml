@@ -48,6 +48,7 @@ jobs:
           echo "[keys]" >> lilac/config/nvchecker_keyfile.toml
           echo 'github = "${{ secrets.GITHUB_TOKEN }}"' >> lilac/config/nvchecker_keyfile.toml
       - name: 🐳⚙️ Setup Docker environment
+        shell: 'script -q -e -a /dev/null -c "bash {0}"'
         run: |
           # https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
@@ -72,22 +73,27 @@ jobs:
             -v $(pwd)/lilac:/home/lilac/lilac \
             ghcr.io/misaka13514-aur/actions-playground:latest
       - name: 🐳📦 Initialize system environment
+        shell: 'script -q -e -a /dev/null -c "bash {0}"'
         run: |
           docker exec -t lilac /init.sh
       - name: 🐳👤 Setup user environment
+        shell: 'script -q -e -a /dev/null -c "bash {0}"'
         run: |
           docker exec -t lilac loginctl enable-linger lilac
           docker exec -t lilac sudo -iu lilac \
             /usr/bin/gpg --batch --import lilac/config/gpg_key
       - name: 🐳🔗🗂️ Mount remote storage
+        shell: 'script -q -e -a /dev/null -c "bash {0}"'
         run: |
           docker exec -t lilac sudo -iu lilac \
             /usr/bin/rclone mount --daemon remote: lilac/remote
       - name: 🐳⬇️🔐 Download lilac persist files
+        shell: 'script -q -e -a /dev/null -c "bash {0}"'
         run: |
           docker exec -t lilac sudo -iu lilac \
             /usr/bin/rclone sync -v --exclude-from /rclone-exclude.txt remote:lilac .lilac
       - name: 🐳🤖🚀 Run lilac
+        shell: 'script -q -e -a /dev/null -c "bash {0}"'
         run: |
           docker exec -t lilac machinectl shell lilac@ \
             /usr/bin/lilac ${{ inputs.lilac_args }}
