@@ -57,25 +57,20 @@ jobs:
           docker info
           docker pull ghcr.io/misaka13514-aur/actions-playground:latest
       - name: 🛠️🐬 Start Docker container
+        shell: 'script -q -e -a /dev/null -c "bash {0}"'
         run: |
-          env > 1
-          bash -i <<EOF
-            env > 2
-          EOF
-          bash -i <<EOF
-            docker run --rm -d \
-              --name lilac \
-              --privileged \
-              --cap-add SYS_ADMIN \
-              --security-opt seccomp=unconfined \
-              --cgroup-parent=docker.slice \
-              --cgroupns private \
-              --tmpfs /tmp \
-              --tmpfs /run \
-              --tmpfs /run/lock \
-              -v $(pwd)/lilac:/home/lilac/lilac \
-              ghcr.io/misaka13514-aur/actions-playground:latest
-          EOF
+          docker run --rm -d \
+            --name lilac \
+            --privileged \
+            --cap-add SYS_ADMIN \
+            --security-opt seccomp=unconfined \
+            --cgroup-parent=docker.slice \
+            --cgroupns private \
+            --tmpfs /tmp \
+            --tmpfs /run \
+            --tmpfs /run/lock \
+            -v $(pwd)/lilac:/home/lilac/lilac \
+            ghcr.io/misaka13514-aur/actions-playground:latest
       - name: 🐛 Setup tmate session
         if: always()
         uses: mxschmitt/action-tmate@v3
