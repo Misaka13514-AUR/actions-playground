@@ -53,19 +53,32 @@ jobs:
         with:
           limit-access-to-actor: true
           install-dependencies: true
-      # - name: 🛠️⚙️ Setup Docker
-      #   run: |
-      #     # https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces
-      #     sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
-      #     sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-      #     # https://docs.docker.com/reference/cli/dockerd/#configure-cgroup-driver
-      #     echo '{"exec-opts":["native.cgroupdriver=systemd"]}' | sudo tee /etc/docker/daemon.json
-      #     sudo systemctl restart docker.service
-      #     sleep 20
-      #     sudo systemctl restart docker.service
-      #     sleep 20
-      #     sudo systemctl status docker.service
-      #     docker info
+      - name: 🛠️⚙️ Setup Docker
+        run: |
+          # https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          # prepare the docker environment
+          docker info
+          docker pull ghcr.io/misaka13514-aur/actions-playground:latest
+          # Maybe a magic fix for the cgroup driver by starting a container
+          docker run --rm -d \
+            --name lilac \
+            --privileged \
+            --cap-add SYS_ADMIN \
+            --security-opt seccomp=unconfined \
+            --cgroup-parent=docker.slice \
+            --cgroupns private \
+            --tmpfs /tmp \
+            --tmpfs /run \
+            --tmpfs /run/lock \
+            -v $(pwd)/lilac:/home/lilac/lilac \
+            ghcr.io/misaka13514-aur/actions-playground:latest
+          docker stop lilac
+          # https://docs.docker.com/reference/cli/dockerd/#configure-cgroup-driver
+          echo '{"exec-opts":["native.cgroupdriver=systemd"]}' | sudo tee /etc/docker/daemon.json
+          sudo systemctl restart docker.service
+          sudo systemctl status docker.service
       - name: 🛠️🐬 Start Docker container
         run: |
           docker run --rm -d \
