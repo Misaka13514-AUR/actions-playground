@@ -58,11 +58,12 @@ jobs:
           docker pull ghcr.io/misaka13514-aur/actions-playground:latest
       - name: 🛠️🐬 Start Docker container
         run: |
-          sudo apt-get update
-          sudo apt-get install -y systemd-container
-          sudo loginctl enable-linger $(whoami)
-          sudo machinectl shell $(whoami)@ \
-            $(which docker) run --rm -d \
+          env > 1
+          bash -i <<EOF
+            env > 2
+          EOF
+          bash -i <<EOF
+            docker run --rm -d \
               --name lilac \
               --privileged \
               --cap-add SYS_ADMIN \
@@ -74,6 +75,7 @@ jobs:
               --tmpfs /run/lock \
               -v $(pwd)/lilac:/home/lilac/lilac \
               ghcr.io/misaka13514-aur/actions-playground:latest
+          EOF
       - name: 🐛 Setup tmate session
         if: always()
         uses: mxschmitt/action-tmate@v3
