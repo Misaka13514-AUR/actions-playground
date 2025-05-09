@@ -16,16 +16,28 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - name: 🛠️📂 Prepare the directory
+      - name: 🛠️📂 Prepare the directorys
         run: |
+          # git repository contains PKGBUILDs
           mkdir -p lilac/gitrepo
+          # local temporary directory to store built packages
           mkdir -p lilac/repo
+          # remote directory:
+          #   - lilac: .lilac persist files
+          #   - aur/x86_64: packages and pacman database
+          #   - aur/log: build logs
+          #   - aur/archive: old packages
           mkdir -p lilac/remote
+          # config files
+          #   - ssh_key: SSH private key
+          #   - gpg_key: GPG private key
+          #   - rclone.conf: rclone config
+          #   - lilac.toml: lilac config
           mkdir -p lilac/config
       - name: ⬇️🐙 Clone gitrepo
         run: |
           echo "${{ secrets.SSH_KEY }}" | install -Dm600 /dev/stdin ~/.ssh/id_ed25519
-          git clone --single-branch --depth 1 git@github.com:Misaka13514-AUR/repo.git lilac/gitrepo
+          git clone --single-branch git@github.com:Misaka13514-AUR/repo.git lilac/gitrepo
       - name: 🛠️⚙️ Write config
         run: |
           umask 077
@@ -35,19 +47,25 @@ jobs:
           cp -a lilac/gitrepo/lilac.toml lilac/config/lilac.toml
           sed -i "s|<DB_URL>|${{ secrets.DB_URL }}|g" lilac/config/lilac.toml
           sed -i "s|<SMTP_PASSWORD>|${{ secrets.SMTP_PASSWORD }}|g" lilac/config/lilac.toml
-      - name: 🛠️⚙️ Setup Docker
-        run: |
-          # https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces
-          sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
-          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-          # https://docs.docker.com/reference/cli/dockerd/#configure-cgroup-driver
-          echo '{"exec-opts":["native.cgroupdriver=systemd"]}' | sudo tee /etc/docker/daemon.json
-          sudo systemctl restart docker.service
-          sleep 20
-          sudo systemctl restart docker.service
-          sleep 20
-          sudo systemctl status docker.service
-          docker info
+      - name: 🐛 Setup tmate session
+        if: always()
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          install-dependencies: true
+      # - name: 🛠️⚙️ Setup Docker
+      #   run: |
+      #     # https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces
+      #     sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
+      #     sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      #     # https://docs.docker.com/reference/cli/dockerd/#configure-cgroup-driver
+      #     echo '{"exec-opts":["native.cgroupdriver=systemd"]}' | sudo tee /etc/docker/daemon.json
+      #     sudo systemctl restart docker.service
+      #     sleep 20
+      #     sudo systemctl restart docker.service
+      #     sleep 20
+      #     sudo systemctl status docker.service
+      #     docker info
       - name: 🛠️🐬 Start Docker container
         run: |
           docker run --rm -d \
@@ -68,15 +86,15 @@ jobs:
       - name: 🛠️🐬 Set up user environment in Docker
         run: |
           docker exec -t lilac loginctl enable-linger lilac
-          docker exec -t lilac machinectl shell lilac@ \
+          docker exec -t lilac sudo -iu lilac \
             /usr/bin/gpg --batch --import lilac/config/gpg_key
       - name: 🛠️🗂️ Mount remote directory
         run: |
-          docker exec -t lilac machinectl shell lilac@ \
-            /usr/bin/rclone mount --daemon --read-only remote: lilac/remote
+          docker exec -t lilac sudo -iu lilac \
+            /usr/bin/rclone mount --daemon remote: lilac/remote
       - name: ⬇️🔒 Download lilac persist files
         run: |
-          docker exec -t lilac machinectl shell lilac@ \
+          docker exec -t lilac sudo -iu lilac \
             /usr/bin/rclone sync -v --exclude-from /rclone-exclude.txt remote:lilac .lilac
       - name: 🛠️🤖 Run lilac
         run: |
@@ -84,11 +102,11 @@ jobs:
             /usr/bin/lilac ${{ inputs.lilac_args }}
       - name: ⬆️📜 Upload lilac logs
         run: |
-          docker exec -t lilac machinectl shell lilac@ \
+          docker exec -t lilac sudo -iu lilac \
             /usr/bin/rclone copy -v --copy-links .lilac/log remote:aur/log
       - name: ⬆️🔒 Upload lilac persist files
         run: |
-          docker exec -t lilac machinectl shell lilac@ \
+          docker exec -t lilac sudo -iu lilac \
             /usr/bin/rclone sync -v --exclude-from /rclone-exclude.txt .lilac remote:lilac
       - name: 🧙👀 Print lilac logs
         run: |
@@ -115,28 +133,31 @@ jobs:
       - name: ⬇️🛢️ Download pacman database
         if: steps.count.outputs.pkgs_count != 0
         run: |
-          docker exec -t lilac machinectl shell lilac@ \
+          docker exec -t lilac sudo -iu lilac \
             /usr/bin/rclone copy -v --copy-links remote:aur/x86_64/apeiria.db lilac/repo
-          docker exec -t lilac machinectl shell lilac@ \
+          docker exec -t lilac sudo -iu lilac \
             /usr/bin/rclone copy -v --copy-links remote:aur/x86_64/apeiria.db.tar.gz lilac/repo
-          docker exec -t lilac machinectl shell lilac@ \
+          docker exec -t lilac sudo -iu lilac \
             /usr/bin/rclone copy -v --copy-links remote:aur/x86_64/apeiria.files lilac/repo
-          docker exec -t lilac machinectl shell lilac@ \
+          docker exec -t lilac sudo -iu lilac \
             /usr/bin/rclone copy -v --copy-links remote:aur/x86_64/apeiria.files.tar.gz lilac/repo
       - name: 📦➡️🛢️ Add packages to database
         if: steps.count.outputs.pkgs_count != 0
         run: |
-          docker exec -t lilac machinectl shell lilac@ \
+          docker exec -t lilac sudo -iu lilac \
             /usr/bin/repo-add lilac/repo/apeiria.db.tar.gz lilac/repo/*.pkg.tar.zst
+          rm -f lilac/repo/apeiria.db.tar.gz.old
+          rm -f lilac/repo/apeiria.files.tar.gz.old
       - name: ⬆️📦🛢️✍️ Upload packages and database
         if: steps.count.outputs.pkgs_count != 0
         run: |
-          docker exec -t lilac machinectl shell lilac@ \
+          docker exec -t lilac sudo -iu lilac \
             /usr/bin/rclone copy -v --copy-links lilac/repo/ remote:aur/x86_64
       - name: 💩➡️🚽 Clean up
         if: steps.count.outputs.pkgs_count != 0
         run: |
-          echo TODO
+          docker exec -t lilac sudo -iu lilac \
+            /repocleaner.py
       - name: 🐛 Setup tmate session
         if: always()
         uses: mxschmitt/action-tmate@v3

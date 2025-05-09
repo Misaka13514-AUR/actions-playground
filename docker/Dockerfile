@@ -43,8 +43,10 @@ RUN chown -R lilac:pkg /home/lilac && \
 COPY init.sh /
 COPY group-log.sh /
 COPY rclone-exclude.txt /
+COPY repocleaner.py /
 RUN chmod +x /init.sh && \
-    chmod +x /group-log.sh
+    chmod +x /group-log.sh && \
+    chmod +x /repocleaner.py
 
 VOLUME ["/tmp", "/run", "/run/lock"]
 CMD [ "/lib/systemd/systemd", "log-level=info", "unit=sysinit.target" ]
