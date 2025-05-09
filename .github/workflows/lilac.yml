@@ -47,52 +47,37 @@ jobs:
           cp -a lilac/gitrepo/lilac.toml lilac/config/lilac.toml
           sed -i "s|<DB_URL>|${{ secrets.DB_URL }}|g" lilac/config/lilac.toml
           sed -i "s|<SMTP_PASSWORD>|${{ secrets.SMTP_PASSWORD }}|g" lilac/config/lilac.toml
+      - name: 🛠️⚙️ Setup Docker
+        run: |
+          # https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          # prepare the docker environment
+          # https://docs.docker.com/reference/cli/dockerd/#configure-cgroup-driver
+          docker info
+          docker pull ghcr.io/misaka13514-aur/actions-playground:latest
+      - name: 🛠️🐬 Start Docker container
+        run: |
+          sudo loginctl enable-linger $(whoami)
+          sudo machinectl shell $(whoami)@ \
+            docker run --rm -d \
+              --name lilac \
+              --privileged \
+              --cap-add SYS_ADMIN \
+              --security-opt seccomp=unconfined \
+              --cgroup-parent=docker.slice \
+              --cgroupns private \
+              --tmpfs /tmp \
+              --tmpfs /run \
+              --tmpfs /run/lock \
+              -v $(pwd)/lilac:/home/lilac/lilac \
+              ghcr.io/misaka13514-aur/actions-playground:latest
       - name: 🐛 Setup tmate session
         if: always()
         uses: mxschmitt/action-tmate@v3
         with:
           limit-access-to-actor: true
           install-dependencies: true
-      # - name: 🛠️⚙️ Setup Docker
-      #   run: |
-      #     # https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces
-      #     sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
-      #     sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-      #     # prepare the docker environment
-      #     docker info
-      #     docker pull ghcr.io/misaka13514-aur/actions-playground:latest
-      #     # Maybe a magic fix for the cgroup driver by starting a container
-      #     docker run --rm -d \
-      #       --name lilac \
-      #       --privileged \
-      #       --cap-add SYS_ADMIN \
-      #       --security-opt seccomp=unconfined \
-      #       --cgroup-parent=docker.slice \
-      #       --cgroupns private \
-      #       --tmpfs /tmp \
-      #       --tmpfs /run \
-      #       --tmpfs /run/lock \
-      #       -v $(pwd)/lilac:/home/lilac/lilac \
-      #       ghcr.io/misaka13514-aur/actions-playground:latest
-      #     docker stop lilac
-      #     # https://docs.docker.com/reference/cli/dockerd/#configure-cgroup-driver
-      #     echo '{"exec-opts":["native.cgroupdriver=systemd"]}' | sudo tee /etc/docker/daemon.json
-      #     sudo systemctl restart docker.service
-      #     sudo systemctl status docker.service
-      # - name: 🛠️🐬 Start Docker container
-      #   run: |
-      #     docker run --rm -d \
-      #       --name lilac \
-      #       --privileged \
-      #       --cap-add SYS_ADMIN \
-      #       --security-opt seccomp=unconfined \
-      #       --cgroup-parent=docker.slice \
-      #       --cgroupns private \
-      #       --tmpfs /tmp \
-      #       --tmpfs /run \
-      #       --tmpfs /run/lock \
-      #       -v $(pwd)/lilac:/home/lilac/lilac \
-      #       ghcr.io/misaka13514-aur/actions-playground:latest
       - name: 🛠️🐬 Set up system environment in Docker
         run: |
           docker exec -t lilac /init.sh
