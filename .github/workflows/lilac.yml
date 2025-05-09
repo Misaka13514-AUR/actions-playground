@@ -6,9 +6,6 @@ on:
         default: ''
         description: 'Args pass to lilac'
         type: string
-env:
-  GITREPO: git@github.com:Misaka13514-AUR/repo.git
-  REPO_NAME: apeiria
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
@@ -38,6 +35,8 @@ jobs:
           #   - lilac.toml: lilac config
           mkdir -p lilac/config
       - name: ⬇️🐙 Clone git repository
+        env:
+          GITREPO: git@github.com:Misaka13514-AUR/repo.git
         run: |
           echo "${{ secrets.SSH_KEY }}" | install -Dm600 /dev/stdin ~/.ssh/id_ed25519
           git clone --single-branch ${{ env.GITREPO }} lilac/gitrepo
@@ -128,6 +127,8 @@ jobs:
         with:
           subject-path: 'lilac/repo/*.pkg.tar.zst'
       - name: ⬇️🗃️ Download pacman database
+        env:
+          REPO_NAME: apeiria
         if: steps.count.outputs.pkgs_count != 0
         run: |
           docker exec -t lilac sudo -iu lilac \
@@ -139,6 +140,8 @@ jobs:
           docker exec -t lilac sudo -iu lilac \
             /usr/bin/rclone copy -v --copy-links remote:aur/x86_64/${{ env.REPO_NAME }}.files.tar.gz lilac/repo
       - name: 📦➡️🗃️ Add packages to database
+        env:
+          REPO_NAME: apeiria
         if: steps.count.outputs.pkgs_count != 0
         run: |
           docker exec -t lilac sudo -iu lilac \
