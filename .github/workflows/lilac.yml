@@ -58,9 +58,11 @@ jobs:
           docker pull ghcr.io/misaka13514-aur/actions-playground:latest
       - name: 🛠️🐬 Start Docker container
         run: |
+          sudo apt-get update
+          sudo apt-get install -y systemd-container
           sudo loginctl enable-linger $(whoami)
           sudo machinectl shell $(whoami)@ \
-            docker run --rm -d \
+            $(which docker) run --rm -d \
               --name lilac \
               --privileged \
               --cap-add SYS_ADMIN \
