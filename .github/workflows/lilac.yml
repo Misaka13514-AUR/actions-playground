@@ -6,9 +6,10 @@ on:
         default: ''
         description: 'Args pass to lilac'
         type: string
-concurrency:
-  group: ${{ github.workflow }}
-  cancel-in-progress: false
+env:
+  GITREPO: git@github.com:Misaka13514-AUR/repo.git
+  DOCKER_IMAGE: ghcr.io/misaka13514-aur/actions-playground:latest
+  REPO_NAME: apeiria
 jobs:
   lilac:
     runs-on: ubuntu-latest
@@ -35,8 +36,6 @@ jobs:
           #   - lilac.toml: lilac config
           mkdir -p lilac/config
       - name: ⬇️🐙 Clone git repository
-        env:
-          GITREPO: git@github.com:Misaka13514-AUR/repo.git
         run: |
           echo "${{ secrets.SSH_KEY }}" | install -Dm600 /dev/stdin ~/.ssh/id_ed25519
           git clone --single-branch ${{ env.GITREPO }} lilac/gitrepo
@@ -60,7 +59,7 @@ jobs:
           # prepare the docker environment
           # https://docs.docker.com/reference/cli/dockerd/#configure-cgroup-driver
           docker info
-          docker pull ghcr.io/misaka13514-aur/actions-playground:latest
+          docker pull ${{ env.DOCKER_IMAGE }}
       - name: 🐳🚀 Start Docker container
         shell: 'script -q -e -a /dev/null -c "bash {0}"'
         run: |
@@ -75,7 +74,7 @@ jobs:
             --tmpfs /run \
             --tmpfs /run/lock \
             -v $(pwd)/lilac:/home/lilac/lilac \
-            ghcr.io/misaka13514-aur/actions-playground:latest
+            ${{ env.DOCKER_IMAGE }}
       - name: 🐳📦 Initialize system environment
         run: |
           docker exec -t lilac /init.sh
@@ -127,8 +126,6 @@ jobs:
         with:
           subject-path: 'lilac/repo/*.pkg.tar.zst'
       - name: ⬇️🗃️ Download pacman database
-        env:
-          REPO_NAME: apeiria
         if: steps.count.outputs.pkgs_count != 0
         run: |
           docker exec -t lilac sudo -iu lilac \
@@ -140,8 +137,6 @@ jobs:
           docker exec -t lilac sudo -iu lilac \
             /usr/bin/rclone copy -v --copy-links remote:aur/x86_64/${{ env.REPO_NAME }}.files.tar.gz lilac/repo
       - name: 📦➡️🗃️ Add packages to database
-        env:
-          REPO_NAME: apeiria
         if: steps.count.outputs.pkgs_count != 0
         run: |
           docker exec -t lilac sudo -iu lilac \
