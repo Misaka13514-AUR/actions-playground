@@ -53,7 +53,7 @@ jobs:
           sed -i "s|<SMTP_PASSWORD>|${{ secrets.SMTP_PASSWORD }}|g" lilac/config/lilac.toml
           sed -i "s|<GITHUB_TOKEN>|${{ secrets.GITHUB_TOKEN }}|g" lilac/config/lilac.toml
           echo "[keys]" >> lilac/config/nvchecker_keyfile.toml
-          echo 'github = "${{ secrets.GITHUB_TOKEN }}"' >> lilac/config/nvchecker_keyfile.toml"
+          echo 'github = "${{ secrets.GITHUB_TOKEN }}"' >> lilac/config/nvchecker_keyfile.toml
       - name: 🐳⚙️ Setup Docker environment
         run: |
           # https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces
