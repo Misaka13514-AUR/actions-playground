@@ -7,6 +7,13 @@ on:
       - '.github/workflows/build-attested-image.yml'
       - 'docker/**'
   workflow_dispatch:
+  schedule:
+    # Runs at 00:00 UTC every Monday
+    # https://crontab.guru/#0_0_*_*_1
+    - cron: '0 0 * * 1'
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,11 +25,11 @@ jobs:
     env:
       REGISTRY: ghcr.io
       USERNAME: ${{ github.actor }}
+      USE_CACHE: ${{ github.event_name != 'schedule' }}
     steps:
       - name: lowercase github.repository
         id: lowercase
-        run: |
-          echo "IMAGE_NAME=${GITHUB_REPOSITORY@L}" >> ${GITHUB_OUTPUT}
+        run: echo "IMAGE_NAME=${GITHUB_REPOSITORY@L}" >> ${GITHUB_OUTPUT}
       - name: Checkout
         uses: actions/checkout@v4
       - name: Get current UID and GID
@@ -48,11 +55,11 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: ${{ env.REGISTRY }}/${{ steps.lowercase.outputs.IMAGE_NAME }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
           build-args: |
             UID=${{ steps.get-uid-gid.outputs.UID }}
             GID=${{ steps.get-uid-gid.outputs.GID }}
+          cache-from: ${{ env.USE_CACHE == 'true' && 'type=gha' || '' }}
+          cache-to: ${{ env.USE_CACHE == 'true' && 'type=gha,mode=max' || '' }}
       - name: Attest
         uses: actions/attest-build-provenance@v2
         id: attest

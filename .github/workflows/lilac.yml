@@ -8,7 +8,6 @@ on:
         type: string
 env:
   GITREPO: git@github.com:Misaka13514-AUR/repo.git
-  DOCKER_IMAGE: ghcr.io/misaka13514-aur/actions-playground:latest
   REPO_NAME: apeiria
 concurrency:
   group: ${{ github.workflow }}
@@ -62,7 +61,7 @@ jobs:
           # prepare the docker environment
           # https://docs.docker.com/reference/cli/dockerd/#configure-cgroup-driver
           docker info
-          docker pull ${{ env.DOCKER_IMAGE }}
+          docker pull ghcr.io/misaka13514-aur/actions-playground:latest
       - name: 🐳🚀 Start Docker container
         shell: 'script -q -e -a /dev/null -c "bash {0}"'
         run: |
@@ -77,7 +76,7 @@ jobs:
             --tmpfs /run \
             --tmpfs /run/lock \
             -v $(pwd)/lilac:/home/lilac/lilac \
-            ${{ env.DOCKER_IMAGE }}
+            ghcr.io/misaka13514-aur/actions-playground:latest
       - name: 🐳📦 Initialize system environment
         run: |
           docker exec -t lilac /init.sh
