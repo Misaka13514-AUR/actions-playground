@@ -81,6 +81,13 @@ jobs:
       - name: 🐳📦 Initialize system environment
         run: |
           docker exec -t lilac /init.sh
+      - name: 🐛 Setup tmate session
+        if: always()
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          install-dependencies: true
+          detached: true
       - name: 🐳👤 Setup user environment
         run: |
           docker exec -t lilac loginctl enable-linger lilac
@@ -94,13 +101,6 @@ jobs:
         run: |
           docker exec -t lilac sudo -iu lilac \
             /usr/bin/rclone sync -v --exclude-from /rclone-exclude.txt remote:lilac .lilac
-      - name: 🐛 Setup tmate session
-        if: always()
-        uses: mxschmitt/action-tmate@v3
-        with:
-          limit-access-to-actor: true
-          install-dependencies: true
-          detached: true
       - name: 🐳🤖🚀 Run lilac
         run: |
           docker exec -t lilac machinectl shell lilac@ \
