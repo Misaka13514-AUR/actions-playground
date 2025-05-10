@@ -7,6 +7,12 @@ on:
       - '.github/workflows/build-attested-image.yml'
       - 'docker/**'
   workflow_dispatch:
+    inputs:
+      use-cache:
+        description: 'Enable cache'
+        required: false
+        default: true
+        type: boolean
   schedule:
     # Runs at 00:00 UTC every Monday
     # https://crontab.guru/#0_0_*_*_1
@@ -25,7 +31,7 @@ jobs:
     env:
       REGISTRY: ghcr.io
       USERNAME: ${{ github.actor }}
-      USE_CACHE: ${{ github.event_name != 'schedule' }}
+      USE_CACHE: ${{ github.event_name != 'schedule' && (github.event_name != 'workflow_dispatch' || inputs.use-cache == true) }}
     steps:
       - name: lowercase github.repository
         id: lowercase
@@ -58,8 +64,8 @@ jobs:
           build-args: |
             UID=${{ steps.get-uid-gid.outputs.UID }}
             GID=${{ steps.get-uid-gid.outputs.GID }}
-          cache-from: ${{ env.USE_CACHE == 'true' && 'type=gha' || '' }}
-          cache-to: ${{ env.USE_CACHE == 'true' && 'type=gha,mode=max' || '' }}
+          cache-from: ${{ env.USE_CACHE == true && 'type=gha' || '' }}
+          cache-to: ${{ env.USE_CACHE == true && 'type=gha,mode=max' || '' }}
       - name: Attest
         uses: actions/attest-build-provenance@v2
         id: attest
