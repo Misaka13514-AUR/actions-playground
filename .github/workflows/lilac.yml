@@ -63,8 +63,14 @@ jobs:
           # https://docs.docker.com/reference/cli/dockerd/#configure-cgroup-driver
           docker info
           docker pull ${{ env.DOCKER_IMAGE }}
+      # - name: 🐛 Setup tmate session (pre-container)
+      #   if: always()
+      #   uses: mxschmitt/action-tmate@v3
+      #   with:
+      #     limit-access-to-actor: true
+      #     install-dependencies: true
+      #     detached: true
       - name: 🐳🚀 Start Docker container
-        # shell: 'script -q -e -a /dev/null -c "bash {0}"'
         run: |
           docker run --rm -d \
             --name lilac \
@@ -72,19 +78,12 @@ jobs:
             --cap-add SYS_ADMIN \
             --security-opt seccomp=unconfined \
             --cgroup-parent=docker.slice \
-            --cgroupns private \
+            --cgroupns host \
             --tmpfs /tmp \
             --tmpfs /run \
             --tmpfs /run/lock \
             -v $(pwd)/lilac:/home/lilac/lilac \
             ${{ env.DOCKER_IMAGE }}
-      - name: 🐛 Setup tmate session
-        if: always()
-        uses: mxschmitt/action-tmate@v3
-        with:
-          limit-access-to-actor: true
-          install-dependencies: true
-          detached: true
       - name: 🐳📦 Initialize system environment
         run: |
           docker exec -t lilac /init.sh
@@ -101,6 +100,19 @@ jobs:
         run: |
           docker exec -t lilac sudo -iu lilac \
             /usr/bin/rclone sync -v --exclude-from /rclone-exclude.txt remote:lilac .lilac
+      - name: 🔍 Debug cgroup configuration
+        run: |
+          echo "Host cgroup configuration:"
+          findmnt -R /sys/fs/cgroup/
+          echo "/sys/fs/cgroup/user.slice/cgroup.subtree_control"
+          cat /sys/fs/cgroup/user.slice/cgroup.subtree_control
+          echo ""
+          echo "Container cgroup configuration:"
+          docker exec -t lilac findmnt -R /sys/fs/cgroup/
+          echo "/sys/fs/cgroup/user.slice/cgroup.subtree_control"
+          docker exec -t lilac cat /sys/fs/cgroup/user.slice/cgroup.subtree_control
+          echo "/proc/self/cgroup"
+          docker exec -t lilac cat /proc/self/cgroup
       - name: 🐳🤖🚀 Run lilac
         run: |
           docker exec -t lilac machinectl shell lilac@ \
@@ -163,9 +175,3 @@ jobs:
         run: |
           docker exec -t lilac sudo -iu lilac \
             /repocleaner.py
-      # - name: 🐛 Setup tmate session
-      #   if: always()
-      #   uses: mxschmitt/action-tmate@v3
-      #   with:
-      #     limit-access-to-actor: true
-      #     install-dependencies: true
