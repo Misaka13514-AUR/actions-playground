@@ -6,6 +6,13 @@ on:
         default: ''
         description: 'Args pass to lilac'
         type: string
+env:
+  GITREPO: git@github.com:Misaka13514-AUR/repo.git
+  DOCKER_IMAGE: ghcr.io/misaka13514-aur/actions-playground:latest
+  REPO_NAME: apeiria
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 jobs:
   lilac:
     runs-on: ubuntu-latest
@@ -34,7 +41,7 @@ jobs:
       - name: ⬇️🐙 Clone git repository
         run: |
           echo "${{ secrets.SSH_KEY }}" | install -Dm600 /dev/stdin ~/.ssh/id_ed25519
-          git clone --single-branch git@github.com:Misaka13514-AUR/repo.git lilac/gitrepo
+          git clone --single-branch ${{ env.GITREPO }} lilac/gitrepo
       - name: 🛠️📝 Write configuration
         run: |
           umask 077
@@ -48,7 +55,6 @@ jobs:
           echo "[keys]" >> lilac/config/nvchecker_keyfile.toml
           echo 'github = "${{ secrets.GITHUB_TOKEN }}"' >> lilac/config/nvchecker_keyfile.toml
       - name: 🐳⚙️ Setup Docker environment
-        shell: 'script -q -e -a /dev/null -c "bash {0}"'
         run: |
           # https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
@@ -56,7 +62,7 @@ jobs:
           # prepare the docker environment
           # https://docs.docker.com/reference/cli/dockerd/#configure-cgroup-driver
           docker info
-          docker pull ghcr.io/misaka13514-aur/actions-playground:latest
+          docker pull ${{ env.DOCKER_IMAGE }}
       - name: 🐳🚀 Start Docker container
         shell: 'script -q -e -a /dev/null -c "bash {0}"'
         run: |
@@ -71,29 +77,30 @@ jobs:
             --tmpfs /run \
             --tmpfs /run/lock \
             -v $(pwd)/lilac:/home/lilac/lilac \
-            ghcr.io/misaka13514-aur/actions-playground:latest
+            ${{ env.DOCKER_IMAGE }}
+      - name: 🐛 Setup tmate session
+        if: always()
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          install-dependencies: true
       - name: 🐳📦 Initialize system environment
-        shell: 'script -q -e -a /dev/null -c "bash {0}"'
         run: |
           docker exec -t lilac /init.sh
       - name: 🐳👤 Setup user environment
-        shell: 'script -q -e -a /dev/null -c "bash {0}"'
         run: |
           docker exec -t lilac loginctl enable-linger lilac
           docker exec -t lilac sudo -iu lilac \
             /usr/bin/gpg --batch --import lilac/config/gpg_key
       - name: 🐳🔗🗂️ Mount remote storage
-        shell: 'script -q -e -a /dev/null -c "bash {0}"'
         run: |
           docker exec -t lilac sudo -iu lilac \
             /usr/bin/rclone mount --daemon remote: lilac/remote
       - name: 🐳⬇️🔐 Download lilac persist files
-        shell: 'script -q -e -a /dev/null -c "bash {0}"'
         run: |
           docker exec -t lilac sudo -iu lilac \
             /usr/bin/rclone sync -v --exclude-from /rclone-exclude.txt remote:lilac .lilac
       - name: 🐳🤖🚀 Run lilac
-        shell: 'script -q -e -a /dev/null -c "bash {0}"'
         run: |
           docker exec -t lilac machinectl shell lilac@ \
             /usr/bin/lilac ${{ inputs.lilac_args }}
@@ -131,20 +138,20 @@ jobs:
         if: steps.count.outputs.pkgs_count != 0
         run: |
           docker exec -t lilac sudo -iu lilac \
-            /usr/bin/rclone copy -v --copy-links remote:aur/x86_64/apeiria.db lilac/repo
+            /usr/bin/rclone copy -v --copy-links remote:aur/x86_64/${{ env.REPO_NAME }}.db lilac/repo
           docker exec -t lilac sudo -iu lilac \
-            /usr/bin/rclone copy -v --copy-links remote:aur/x86_64/apeiria.db.tar.gz lilac/repo
+            /usr/bin/rclone copy -v --copy-links remote:aur/x86_64/${{ env.REPO_NAME }}.db.tar.gz lilac/repo
           docker exec -t lilac sudo -iu lilac \
-            /usr/bin/rclone copy -v --copy-links remote:aur/x86_64/apeiria.files lilac/repo
+            /usr/bin/rclone copy -v --copy-links remote:aur/x86_64/${{ env.REPO_NAME }}.files lilac/repo
           docker exec -t lilac sudo -iu lilac \
-            /usr/bin/rclone copy -v --copy-links remote:aur/x86_64/apeiria.files.tar.gz lilac/repo
+            /usr/bin/rclone copy -v --copy-links remote:aur/x86_64/${{ env.REPO_NAME }}.files.tar.gz lilac/repo
       - name: 📦➡️🗃️ Add packages to database
         if: steps.count.outputs.pkgs_count != 0
         run: |
           docker exec -t lilac sudo -iu lilac \
-            /usr/bin/repo-add lilac/repo/apeiria.db.tar.gz lilac/repo/*.pkg.tar.zst
-          rm -f lilac/repo/apeiria.db.tar.gz.old
-          rm -f lilac/repo/apeiria.files.tar.gz.old
+            /usr/bin/repo-add lilac/repo/${{ env.REPO_NAME }}.db.tar.gz lilac/repo/*.pkg.tar.zst
+          rm -f lilac/repo/${{ env.REPO_NAME }}.db.tar.gz.old
+          rm -f lilac/repo/${{ env.REPO_NAME }}.files.tar.gz.old
       - name: ⬆️📦✍️🗃️ Upload packages and database
         if: steps.count.outputs.pkgs_count != 0
         run: |
