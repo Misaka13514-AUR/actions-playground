@@ -153,6 +153,9 @@ def main() -> None:
 
   all_packages = get_all_pkgnames()
   for d in repo_path.iterdir():
+    # ignore archive
+    if d == archive_path:
+      continue
     if d.is_dir():
       clean(d, all_packages)
 

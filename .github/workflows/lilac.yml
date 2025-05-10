@@ -78,12 +78,16 @@ jobs:
             --tmpfs /run/lock \
             -v $(pwd)/lilac:/home/lilac/lilac \
             ${{ env.DOCKER_IMAGE }}
+      - run: |
+          systemctl --user --state running
+          systemctl --state running
       - name: 🐛 Setup tmate session
         if: always()
         uses: mxschmitt/action-tmate@v3
         with:
           limit-access-to-actor: true
           install-dependencies: true
+          detached: true
       - name: 🐳📦 Initialize system environment
         run: |
           docker exec -t lilac /init.sh
